@@ -34,4 +34,4 @@ jobs:
         with:
           name: MobileSecurityScanner-debug
           path: app/build/outputs/apk/debug/*.apk
-          
+        
