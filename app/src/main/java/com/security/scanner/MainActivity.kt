@@ -106,7 +106,7 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    // 1. QUICK CHECK: Scans high-target directories (Download, Documents, Telegram/WhatsApp media)
+    // 1. QUICK CHECK: Scans high-target directories (Download, Documents, etc.)
     private fun runQuickCheck() {
         scanJob?.cancel()
         scanJob = CoroutineScope(Dispatchers.Main).launch {
@@ -147,7 +147,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 2. LATE / FULL CHECK: Deep recursive scan of ALL folders on internal storage
+    // 2. FULL CHECK: Deep recursive scan of ALL folders on internal storage
     private fun runFullFolderCheck() {
         scanJob?.cancel()
         scanJob = CoroutineScope(Dispatchers.Main).launch {
@@ -181,7 +181,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 3. TOOL CHECK: Audits installed apps, sideloaded APKs, and dangerous permission combos
+    // 3. TOOL CHECK: Audits installed apps and dangerous permissions
     private fun runToolAppCheck() {
         scanJob?.cancel()
         scanJob = CoroutineScope(Dispatchers.Main).launch {
@@ -209,11 +209,8 @@ class MainActivity : AppCompatActivity() {
                     val isSideloaded = installer == null || installer != "com.android.vending"
 
                     if (riskyPerms.size >= 3 || (isSideloaded && riskyPerms.isNotEmpty())) {
-                        val sourceTag = if (isSideloaded) "Sideloaded (${installer ?: "Unknown"})" else "Play Store"
-                        flaggedApps.add(
-                            "• $appName (${pkgInfo.packageName})
-  Source: $sourceTag | High-Risk Perms: ${riskyPerms.size}"
-                        )
+                        val sourceTag = if (isSideloaded) "Sideloaded ($installer)" else "Play Store"
+                        flaggedApps.add("• $appName (${pkgInfo.packageName})\n  Source: $sourceTag | High-Risk Perms: ${riskyPerms.size}")
                     }
 
                     withContext(Dispatchers.Main) {
@@ -227,7 +224,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 4. UPLOAD CHECK: Inspects any user-selected file (SHA-256 hash, header magic bytes, extension mismatch)
+    // 4. UPLOAD CHECK: Inspects any user-selected file
     private fun runUploadFileCheck(uri: Uri) {
         scanJob?.cancel()
         scanJob = CoroutineScope(Dispatchers.Main).launch {
@@ -272,7 +269,7 @@ class MainActivity : AppCompatActivity() {
                     appendLine("SHA-256   : $sha256")
                     appendLine("----------------------------")
                     if (findings.isEmpty()) {
-                        appendLine("✅ VERDICT: CLEAN (No malicious signature or spoofing detected)")
+                        appendLine("✅ VERDICT: CLEAN")
                     } else {
                         appendLine("🚨 VERDICT: SUSPICIOUS")
                         findings.forEach { appendLine(it) }
@@ -295,12 +292,11 @@ class MainActivity : AppCompatActivity() {
         val nameLower = file.name.lowercase()
         val ext = file.extension.lowercase()
 
-        // Check hidden executable or double extensions (e.g., photo.jpg.apk)
-        if (nameLower.matches(Regex(".*\.(jpg|png|pdf|mp4|txt|doc)\.(apk|exe|sh|bat)$"))) {
+        if (nameLower.matches(Regex(".*\\.(jpg|png|pdf|mp4|txt|doc)\\.(apk|exe|sh|bat)$"))) {
             return "🚨 Double-Extension Spoof: ${file.absolutePath}"
         }
         if (ext in highRiskExtensions) {
-            return "⚠️ Installer/Binary (.$ext): ${file.name} (${file.parentFile?.name})"
+            return "⚠️ Installer/Binary (.$ext): ${file.name}"
         }
         if (suspiciousKeywords.any { nameLower.contains(it) }) {
             return "🚨 Suspicious Name Match: ${file.absolutePath}"
@@ -335,8 +331,7 @@ class MainActivity : AppCompatActivity() {
         tvStatusBadge.text = statusText
         tvStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.accent_blue))
         progressBar.progress = 0
-        tvScanResults.text = "Initializing scan engine...
-"
+        tvScanResults.text = "Initializing scan engine...\n"
     }
 
     private fun finishScan(scanType: String, totalItems: Int, findings: List<String>) {
@@ -346,28 +341,20 @@ class MainActivity : AppCompatActivity() {
         if (findings.isEmpty()) {
             tvStatusBadge.text = "✅ NO THREATS FOUND"
             tvStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.status_safe))
-            tvScanResults.text = "=== $scanType REPORT ===
-Items Scanned: $totalItems
-Threats Found: 0
-
-Your device and scanned directories look clean."
+            tvScanResults.text = "=== $scanType REPORT ===\nItems Scanned: $totalItems\nThreats Found: 0\n\nYour device looks clean."
         } else {
             tvStatusBadge.text = "⚠️ ${findings.size} ITEMS FLAGGED"
             tvStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.status_warn))
             val sb = StringBuilder()
             sb.appendLine("=== $scanType REPORT ===")
-            sb.appendLine("Items Scanned: $totalItems | Flagged: ${findings.size}
-")
+            sb.appendLine("Items Scanned: $totalItems | Flagged: ${findings.size}\n")
             findings.take(150).forEach { sb.appendLine(it) }
-            if (findings.size > 150) sb.appendLine("
-...and ${findings.size - 150} more items.")
             tvScanResults.text = sb.toString()
         }
     }
 
     private fun appendLog(msg: String) {
-        tvScanResults.append("
-$msg")
+        tvScanResults.append("\n$msg")
         scrollLog.post { scrollLog.fullScroll(ScrollView.FOCUS_DOWN) }
     }
 }
